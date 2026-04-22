@@ -1,4 +1,3 @@
-
 package main
 
 import (
@@ -7,7 +6,7 @@ import (
 	"net"
 	"time"
 
-	"github.com/beijian128/pineapple/internal/net"
+	pineapplenet "github.com/beijian128/pineapple/internal/net"
 	"github.com/beijian128/pineapple/internal/router"
 )
 
@@ -21,7 +20,7 @@ func main() {
 
 	fmt.Println("connected to server")
 
-	codec := net.NewCodec()
+	codec := pineapplenet.NewCodec()
 
 	go func() {
 		buf := make([]byte, 4096)
@@ -45,7 +44,7 @@ func main() {
 
 	time.Sleep(500 * time.Millisecond)
 
-	heartbeatMsg := &net.Message{
+	heartbeatMsg := &pineapplenet.Message{
 		MsgID: router.MsgIDHeartbeat,
 		Data:  []byte{},
 	}
@@ -55,7 +54,7 @@ func main() {
 
 	time.Sleep(500 * time.Millisecond)
 
-	loginMsg := &net.Message{
+	loginMsg := &pineapplenet.Message{
 		MsgID: router.MsgIDLoginRequest,
 		Data:  []byte(`{"username":"test","password":"123456"}`),
 	}
