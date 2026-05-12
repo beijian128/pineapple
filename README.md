@@ -1,16 +1,12 @@
 
-# Pineapple - 分布式游戏服务器框架
+# Pineapple - etcd 服务发现模块
 
-基于 Go 语言开发的高性能分布式游戏服务器框架。
+基于 Go 语言开发的轻量级 etcd 服务发现库。
 
 ## 技术栈
 
 - **编程语言**: Go 1.21+
 - **服务发现**: etcd
-- **数据序列化**: Protocol Buffers
-- **数据库**: MongoDB
-- **缓存**: Redis
-- **网络协议**: TCP / KCP / WebSocket / gRPC
 - **日志**: zap + lumberjack
 - **配置管理**: viper
 
@@ -18,22 +14,10 @@
 
 ```
 pineapple/
-├── cmd/                    # 可执行程序入口
-│   ├── gateway/            # 网关服务
-│   ├── login/              # 登录服务
-│   └── game/               # 游戏服务
 ├── internal/               # 内部代码
-│   ├── net/               # 网络层
-│   ├── discovery/         # 服务发现
-│   ├── router/            # 消息路由
-│   ├── storage/           # 数据存储
-│   ├── cluster/           # 分布式组件
-│   └── utils/             # 工具库
-├── api/                   # protobuf 定义
-│   └── proto/
+│   ├── discovery/         # 服务发现 (核心模块)
+│   └── utils/             # 工具库 (配置、日志)
 ├── config/                # 配置文件
-├── scripts/               # 脚本工具
-├── docs/                  # 文档
 ├── go.mod
 ├── go.sum
 └── README.md
@@ -45,10 +29,8 @@ pineapple/
 
 - Go 1.21+
 - etcd
-- MongoDB
-- Redis
 
-### 运行
+### 安装
 
 ```bash
 # 克隆项目
@@ -57,80 +39,179 @@ cd pineapple
 
 # 安装依赖
 go mod tidy
+```
 
-# 运行网关服务
-go run cmd/gateway/main.go
+## 测试指南
+
+### 前置要求
+
+在测试之前，请确保以下服务已启动：
+
+1. **etcd 服务** (默认端口: 2379)
+   - 下载: https://github.com/etcd-io/etcd/releases
+   - 启动命令: `etcd`
+   - 验证: `curl http://localhost:2379/health`
+
+### 快速测试
+
+#### 1. 使用示例程序测试
+
+项目提供了一个完整的测试程序，你可以直接运行：
+
+```bash
+cd pineapple/examples
+go run discovery_test.go
+```
+
+这个测试程序会：
+- 加载配置文件
+- 初始化日志系统
+- 连接 etcd
+- 注册两个服务
+- 发现服务
+- 演示租约保持
+
+#### 2. 手动测试
+
+你也可以创建一个简单的程序进行测试：
+
+```go
+package main
+
+import (
+	"fmt"
+	"time"
+
+	"github.com/beijian128/pineapple/internal/discovery"
+	"github.com/beijian128/pineapple/internal/utils"
+)
+
+func main() {
+	// 1. 加载配置
+	if err := utils.LoadConfig("../config/config.yaml"); err != nil {
+		panic(err)
+	}
+
+	// 2. 初始化日志
+	if err := utils.InitLogger(&utils.AppConfig.Log); err != nil {
+		panic(err)
+	}
+	defer utils.SyncLogger()
+
+	// 3. 连接 etcd
+	if err := discovery.InitDiscovery(&utils.AppConfig.Etcd); err != nil {
+		panic(err)
+	}
+	defer discovery.CloseDiscovery()
+
+	// 4. 注册服务
+	service := &discovery.ServiceInfo{
+		Name:    "game-server",
+		Addr:    "127.0.0.1",
+		Port:    9000,
+		Version: "1.0.0",
+	}
+	if err := discovery.GlobalDiscovery.Register(service); err != nil {
+		panic(err)
+	}
+	fmt.Println("服务注册成功！")
+
+	// 5. 等待一段时间，演示租约保持
+	time.Sleep(30 * time.Second)
+
+	// 6. 程序退出时会自动注销服务
+}
+```
+
+### 使用示例
+
+#### 1. 配置文件 `config.yaml`
+
+```yaml
+etcd:
+  endpoints: ["localhost:2379"]
+  dial_timeout: "5s"
+  lease_ttl: 10
+
+log:
+  level: "info"
+  filename: "logs/pineapple.log"
+  max_size: 100
+  max_backups: 3
+  max_age: 28
+```
+
+#### 2. 初始化并使用服务发现
+
+```go
+package main
+
+import (
+	"github.com/beijian128/pineapple/internal/discovery"
+	"github.com/beijian128/pineapple/internal/utils"
+)
+
+func main() {
+	// 加载配置
+	if err := utils.LoadConfig("./config/config.yaml"); err != nil {
+		panic(err)
+	}
+
+	// 初始化日志
+	if err := utils.InitLogger(&utils.AppConfig.Log); err != nil {
+		panic(err)
+	}
+	defer utils.SyncLogger()
+
+	// 初始化 etcd 服务发现
+	if err := discovery.InitDiscovery(&utils.AppConfig.Etcd); err != nil {
+		panic(err)
+	}
+	defer discovery.CloseDiscovery()
+
+	// 创建服务信息
+	service := &discovery.ServiceInfo{
+		Name:    "my-service",
+		Addr:    "127.0.0.1",
+		Port:    8080,
+		Version: "1.0.0",
+	}
+
+	// 注册服务
+	if err := discovery.GlobalDiscovery.Register(service); err != nil {
+		panic(err)
+	}
+	defer discovery.GlobalDiscovery.Unregister(service)
+
+	// 发现服务
+	services, err := discovery.GlobalDiscovery.Discover("my-service")
+	if err != nil {
+		panic(err)
+	}
+}
 ```
 
 ## 核心模块
 
-### 1. 网络层 (net/)
-- TCP 服务器
-- WebSocket 支持 (待实现)
-- KCP 协议支持 (待实现)
-- gRPC 服务支持 (待实现)
-- 消息编解码
+### 1. 服务发现 (discovery/)
 
-### 2. 服务发现 (discovery/)
 - etcd 客户端封装
 - 服务注册与发现
-- 健康检查
-- 租约保持
+- 租约保持与自动续期
+- 服务健康检查
 
-### 3. 消息路由 (router/)
-- 消息分发路由
-- 处理器注册机制
-- 中间件支持 (Logger, Recovery)
-- Context 上下文传递
-- 消息ID定义
+### 2. 工具库 (utils/)
 
-### 4. 数据存储 (storage/)
-- MongoDB 封装
-- Redis 封装
-
-### 5. 工具库 (utils/)
-- 配置管理
-- 日志封装
-
-## 消息路由使用示例
-
-```go
-r := router.NewRouter()
-
-// 使用中间件
-r.Use(router.Recovery())
-r.Use(router.Logger())
-
-// 注册处理器
-r.RegisterFunc(router.MsgIDLoginRequest, func(c *router.Context) {
-    // 处理登录请求
-    resp := &amp;net.Message{
-        MsgID: router.MsgIDLoginResponse,
-        Data:  []byte(`{"code":0,"message":"ok"}`),
-    }
-    if r, ok := c.Get("router").(*router.Router); ok {
-        _ = r.Send(c.Conn, resp)
-    }
-})
-
-// 集成到 TCP 服务器
-handler := &amp;GatewayHandler{router: r}
-server := net.NewTCPServer(8888, handler)
-```
-
-## 配置说明
-
-参见 `config/config.yaml`
+- 配置管理 (Viper)
+- 日志封装 (Zap + Lumberjack)
 
 ## 开发计划
 
-- [x] 项目基础搭建
-- [ ] 网络层完善 (WebSocket/KCP/gRPC)
-- [x] 消息路由系统
-- [ ] 分布式组件
-- [ ] 示例游戏服务
-- [ ] 压力测试
-- [ ] 文档完善
+- [x] 基础 etcd 服务发现功能
+- [ ] 服务健康检查增强
+- [ ] 服务状态通知
+- [ ] 负载均衡
+- [ ] 完善文档和示例
 
 ## License
 

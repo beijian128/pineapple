@@ -1,43 +1,12 @@
 
-server:
-  name: pineapple
-  version: 1.0.0
-  env: development
-
-network:
-  tcp:
-    enabled: true
-    port: 8888
-  websocket:
-    enabled: true
-    port: 8889
-  kcp:
-    enabled: true
-    port: 8890
-  grpc:
-    enabled: true
-    port: 9999
-
 etcd:
   endpoints:
     - 127.0.0.1:2379
   dial_timeout: 5s
   lease_ttl: 10
 
-mongodb:
-  uri: mongodb://127.0.0.1:27017
-  database: pineapple
-  max_pool_size: 100
-  min_pool_size: 10
-
-redis:
-  addr: 127.0.0.1:6379
-  password: ""
-  db: 0
-  pool_size: 100
-
 log:
-  level: info
+  level: debug
   filename: ./logs/pineapple.log
   max_size: 100
   max_backups: 10

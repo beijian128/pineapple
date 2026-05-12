@@ -1,4 +1,3 @@
-
 package utils
 
 import (
@@ -8,65 +7,14 @@ import (
 )
 
 type Config struct {
-	Server  ServerConfig  `mapstructure:"server"`
-	Network NetworkConfig `mapstructure:"network"`
-	Etcd    EtcdConfig    `mapstructure:"etcd"`
-	MongoDB MongoDBConfig `mapstructure:"mongodb"`
-	Redis   RedisConfig   `mapstructure:"redis"`
-	Log     LogConfig     `mapstructure:"log"`
-}
-
-type ServerConfig struct {
-	Name    string `mapstructure:"name"`
-	Version string `mapstructure:"version"`
-	Env     string `mapstructure:"env"`
-}
-
-type NetworkConfig struct {
-	TCP  TCPConfig  `mapstructure:"tcp"`
-	WS   WSConfig   `mapstructure:"websocket"`
-	KCP  KCPConfig  `mapstructure:"kcp"`
-	GRPC GRPCConfig `mapstructure:"grpc"`
-}
-
-type TCPConfig struct {
-	Enabled bool   `mapstructure:"enabled"`
-	Port    int    `mapstructure:"port"`
-}
-
-type WSConfig struct {
-	Enabled bool   `mapstructure:"enabled"`
-	Port    int    `mapstructure:"port"`
-}
-
-type KCPConfig struct {
-	Enabled bool   `mapstructure:"enabled"`
-	Port    int    `mapstructure:"port"`
-}
-
-type GRPCConfig struct {
-	Enabled bool   `mapstructure:"enabled"`
-	Port    int    `mapstructure:"port"`
+	Etcd EtcdConfig `mapstructure:"etcd"`
+	Log  LogConfig  `mapstructure:"log"`
 }
 
 type EtcdConfig struct {
 	Endpoints   []string `mapstructure:"endpoints"`
 	DialTimeout string   `mapstructure:"dial_timeout"`
 	LeaseTTL    int64    `mapstructure:"lease_ttl"`
-}
-
-type MongoDBConfig struct {
-	URI         string `mapstructure:"uri"`
-	Database    string `mapstructure:"database"`
-	MaxPoolSize uint64 `mapstructure:"max_pool_size"`
-	MinPoolSize uint64 `mapstructure:"min_pool_size"`
-}
-
-type RedisConfig struct {
-	Addr     string `mapstructure:"addr"`
-	Password string `mapstructure:"password"`
-	DB       int    `mapstructure:"db"`
-	PoolSize int    `mapstructure:"pool_size"`
 }
 
 var AppConfig *Config
